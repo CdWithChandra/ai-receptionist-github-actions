@@ -1,0 +1,27 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Environment files
+backend/.env
+**/.env
+
+# macOS
+.DS_Store
+
+# VS Code
+.vscode/
+
+# Node (future frontend)
+node_modules/
+
+
+# Terraform
+**/.terraform/
+*.tfplan
+*.tfstate
+*.tfstate.*
+
+# SQLite database
+**/*.db

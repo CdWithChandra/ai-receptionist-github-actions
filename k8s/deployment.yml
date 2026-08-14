@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-receptionist
+  namespace: ai-receptionist
+spec:
+  replicas: 1
+  selector:
+    matchLabels: 
+      app: ai-receptionist
+  template:
+    metadata:
+      name: ai-receptionist
+      labels:
+        app: ai-receptionist
+    spec:
+      containers:
+        - name: ai-receptionist
+          image: 669294688092.dkr.ecr.ap-south-1.amazonaws.com/ai-receptionist:1.0
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+
+
+  
