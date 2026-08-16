@@ -122,3 +122,40 @@ resource "aws_iam_role_policy_attachment" "github_actions_ecr" {
   role       = aws_iam_role.github_actions.name
   policy_arn = aws_iam_policy.github_actions_ecr.arn
 }
+
+# ---------------------------------------------------------
+# EKS Permissions for GitHub Actions
+# ---------------------------------------------------------
+
+data "aws_iam_policy_document" "github_actions_eks" {
+  statement {
+    effect = "Allow"
+
+    actions = [
+      "eks:DescribeCluster"
+    ]
+
+    resources = [
+      aws_eks_cluster.main.arn
+    ]
+  }
+}
+
+resource "aws_iam_policy" "github_actions_eks" {
+  name        = "ai-receptionist-github-actions-eks"
+  description = "EKS permissions for GitHub Actions"
+
+  policy = data.aws_iam_policy_document.github_actions_eks.json
+
+  tags = {
+    Name        = "ai-receptionist-github-actions-eks"
+    Project     = "ai-receptionist-github-actions"
+    Environment = "dev"
+    ManagedBy   = "Terraform"
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "github_actions_eks" {
+  role       = aws_iam_role.github_actions.name
+  policy_arn = aws_iam_policy.github_actions_eks.arn
+}
