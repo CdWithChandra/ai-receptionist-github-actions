@@ -32,3 +32,9 @@ jobs:
         working-directory: backend
         run: |
           pytest -q
+    
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t ai-receptionist-github-actions:${{ github.sha }} \
+            backend
