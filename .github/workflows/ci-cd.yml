@@ -1,80 +1,142 @@
 name: AI Receptionist CI/CD
 
 on:
-  push: 
-    branches: 
-      - main
-  pull_request:
+  push:
     branches:
       - main
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
+  ECR_REPOSITORY: ai-receptionist-github-actions
+  EKS_CLUSTER_NAME: ai-receptionist-github-actions-eks
+  K8S_NAMESPACE: ai-receptionist
 
 jobs:
-  test:
-    name: Application Tests
+  build-test-deploy:
+    name: Build, Test and Deploy
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout source code
+
+      # --------------------------------------------------
+      # 1. Checkout source code
+      # --------------------------------------------------
+      - name: Checkout source
         uses: actions/checkout@v4
 
+      # --------------------------------------------------
+      # 2. Configure AWS using GitHub OIDC
+      # --------------------------------------------------
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # --------------------------------------------------
+      # 3. Verify AWS identity
+      # --------------------------------------------------
+      - name: Verify AWS identity
+        run: |
+          echo "AWS Region: $AWS_REGION"
+          aws sts get-caller-identity
+
+      # --------------------------------------------------
+      # 4. Set up Python
+      # --------------------------------------------------
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.14"
 
-      - name: Install dependencies
+      # --------------------------------------------------
+      # 5. Install dependencies
+      # --------------------------------------------------
+      - name: Install backend dependencies
         working-directory: backend
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run application tests
+      # --------------------------------------------------
+      # 6. Run backend tests
+      # --------------------------------------------------
+      - name: Run backend tests
         working-directory: backend
         run: |
-          pytest -q
-    
-      - name: Build Docker image
-        run: |
-          docker build \
-            -t ai-receptionist-github-actions:${{ github.sha }} \
-            backend
+          pytest -v
 
-  build-and-push:
-    name: Build and Push Image to ECR
-    runs-on: ubuntu-latest
-    needs: test
-
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
-    permissions:
-      id-token: write
-      contents: read
-
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
-
-      - name: Configure AWS credentials using OIDC
-        uses: aws-actions/configure-aws-credentials@v4
-        with: 
-          role-to-assume: ${{secrets.AWS_ROLE_ARN}}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Verify AWS identity
-        run: |
-          aws sts get-caller-identity
-
+      # --------------------------------------------------
+      # 7. Login to Amazon ECR
+      # --------------------------------------------------
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
+      # --------------------------------------------------
+      # 8. Build Docker image
+      # --------------------------------------------------
       - name: Build Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
           docker build \
-            -t ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }} \
-            backend
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }} \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
+            ./backend
 
+      # --------------------------------------------------
+      # 9. Push Docker image to ECR
+      # --------------------------------------------------
       - name: Push Docker image to ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
-          docker push \
-            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }}
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+      # --------------------------------------------------
+      # 10. Configure kubectl for EKS
+      # --------------------------------------------------
+      - name: Configure kubectl
+        run: |
+          aws eks update-kubeconfig \
+            --region "$AWS_REGION" \
+            --name "$EKS_CLUSTER_NAME"
+
+      # --------------------------------------------------
+      # 11. Verify EKS access
+      # --------------------------------------------------
+      - name: Verify EKS access
+        run: |
+          kubectl get nodes
+          kubectl get namespace "$K8S_NAMESPACE"
+
+      # --------------------------------------------------
+      # 12. Update Kubernetes deployment image
+      # --------------------------------------------------
+      - name: Deploy to EKS
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          kubectl -n "$K8S_NAMESPACE" set image deployment/ai-receptionist \
+            ai-receptionist=$ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }}
+
+          kubectl -n "$K8S_NAMESPACE" rollout status \
+            deployment/ai-receptionist \
+            --timeout=300s
+
+      # --------------------------------------------------
+      # 13. Verify deployment
+      # --------------------------------------------------
+      - name: Verify deployment
+        run: |
+          kubectl -n "$K8S_NAMESPACE" get deployment
+          kubectl -n "$K8S_NAMESPACE" get pods
+          kubectl -n "$K8S_NAMESPACE" get service
