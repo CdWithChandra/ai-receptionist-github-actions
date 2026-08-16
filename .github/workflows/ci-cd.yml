@@ -118,6 +118,8 @@ jobs:
           kubectl get nodes
           kubectl apply -f k8s/namespace.yml
           kubectl get namespace "$K8S_NAMESPACE"
+          kubectl apply -f k8s/deployment.yml
+          kubectl apply -f k8s/service.yml
 
       # --------------------------------------------------
       # 12. Update Kubernetes deployment image
