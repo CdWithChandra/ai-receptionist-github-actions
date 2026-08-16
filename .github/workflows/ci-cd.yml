@@ -111,11 +111,12 @@ jobs:
             --name "$EKS_CLUSTER_NAME"
 
       # --------------------------------------------------
-      # 11. Verify EKS access
+      # 11. Verify EKS access and create namespace
       # --------------------------------------------------
-      - name: Verify EKS access
+      - name: Verify EKS access and create namespace
         run: |
           kubectl get nodes
+          kubectl apply -f k8s/namespace.yml
           kubectl get namespace "$K8S_NAMESPACE"
 
       # --------------------------------------------------
