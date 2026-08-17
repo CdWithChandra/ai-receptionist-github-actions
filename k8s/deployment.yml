@@ -14,9 +14,10 @@ spec:
       labels:
         app: ai-receptionist
     spec:
+      serviceAccountName: ai-receptionist
       containers:
         - name: ai-receptionist
-          image: 669294688092.dkr.ecr.ap-south-1.amazonaws.com/ai-receptionist:1.0
+          image: 669294688092.dkr.ecr.ap-south-1.amazonaws.com/ai-receptionist-github-actions:165f6c28aa88fdc31bf77ab39eb5ed0efe70c46b
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
