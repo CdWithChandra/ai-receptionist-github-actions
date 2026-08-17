@@ -17,4 +17,26 @@ resource "aws_eks_cluster" "main" {
   depends_on = [
     aws_iam_role_policy_attachment.eks_cluster_policy
   ]
+
+  enabled_cluster_log_types = [
+    "audit"
+  ]
+}
+
+resource "aws_eks_addon" "pod_identity_agent" {
+  cluster_name = aws_eks_cluster.main.name
+  addon_name   = "eks-pod-identity-agent"
+
+  depends_on = [
+    aws_eks_cluster.main
+  ]
+}
+
+resource "aws_eks_addon" "cloudwatch_observability" {
+  cluster_name = aws_eks_cluster.main.name
+  addon_name   = "amazon-cloudwatch-observability"
+
+  depends_on = [
+    aws_eks_addon.pod_identity_agent
+  ]
 }
