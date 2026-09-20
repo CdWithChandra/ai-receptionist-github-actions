@@ -1,6 +1,5 @@
 # AI Receptionist
 
-[![CI/CD](https://github.com/CdWithChandra/ai-receptionist-github-actions/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/CdWithChandra/ai-receptionist-github-actions/actions/workflows/ci-cd.yml)
 
 A FastAPI-based AI receptionist that handles appointment conversations, booking, availability checks, updates, cancellations, and general questions. The service is packaged as a Docker image and deployed to Amazon EKS through GitHub Actions, Amazon ECR, Terraform, and Kubernetes manifests.
 
